@@ -66,14 +66,16 @@ class ValidationOutcome:
 
 def _policy_from_record(record: PolicyRecord) -> Policy:
     """Build the `Policy` the rules compare against from a client `PolicyRecord`."""
-    return Policy(
-        policy_number=record.policy_number,
-        product=record.product,
-        effective_date=record.effective_date,
-        expiry_date=record.expiry_date,
-        cancellation_date=record.cancellation_date,
-        limit=record.limit,
-        permitted_claim_types=record.permitted_claim_types,
+    return Policy.model_validate(
+        {
+            "policy_number": record.policy_number,
+            "product": record.product,
+            "effective_date": record.effective_date,
+            "expiry_date": record.expiry_date,
+            "cancellation_date": record.cancellation_date,
+            "limit": record.limit,
+            "permitted_claim_types": record.permitted_claim_types,
+        }
     )
 
 
