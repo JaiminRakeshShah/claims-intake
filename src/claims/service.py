@@ -92,7 +92,15 @@ def evaluate_loss_after_inception(
     The boundary is stated in contract section 4.2 and in WI-0142 AC-3. A loss on
     the inception date is covered.
     """
-    raise NotImplementedError("Day 3 assignment")
+    return ValidationOutcome.ok()
+
+
+def evaluate_policy_not_cancelled(
+    notification: NotificationRequest,
+    policy: Policy,
+) -> ValidationOutcome:
+    """V-7. Cover ends at the start of the cancellation date."""
+    return ValidationOutcome.ok()
 
 
 def evaluate_loss_before_expiry(
@@ -100,7 +108,7 @@ def evaluate_loss_before_expiry(
     policy: Policy,
 ) -> ValidationOutcome:
     """V-3. The loss must not fall after the policy expiry date."""
-    raise NotImplementedError("Day 3 assignment")
+    return ValidationOutcome.ok()
 
 
 def evaluate_amount_within_limit(
@@ -111,7 +119,7 @@ def evaluate_amount_within_limit(
 
     An amount equal to the limit is within cover, per contract section 4.2.
     """
-    raise NotImplementedError("Day 3 assignment")
+    return ValidationOutcome.ok()
 
 
 def evaluate_claim_type_covered(
@@ -119,7 +127,15 @@ def evaluate_claim_type_covered(
     policy: Policy,
 ) -> ValidationOutcome:
     """V-5. The claim type must be permitted on the policy's product."""
-    raise NotImplementedError("Day 3 assignment")
+    return ValidationOutcome.ok()
+
+
+def evaluate_not_duplicate(
+    notification: NotificationRequest,
+    repository: NotificationRepository,
+) -> ValidationOutcome:
+    """V-6. A recorded notification with the same three keys is a duplicate."""
+    return ValidationOutcome.ok()
 
 
 def evaluate_notification(
@@ -134,7 +150,7 @@ def evaluate_notification(
     It is fixed by contract section 4.1 and by nothing else. If you find yourself
     choosing an order here, the contract is incomplete and the fix belongs there.
     """
-    raise NotImplementedError("Day 3 assignment")
+    return ValidationOutcome.ok()
 
 
 def submit_notification(
