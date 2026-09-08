@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import FrozenInstanceError
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
@@ -126,7 +126,7 @@ def test_catalog_payloads_fail_at_the_model(payload: dict[str, Any]) -> None:
         _edge_01(estimated_amount="-1.00"),
         _edge_01(claim_type=""),
         _edge_01(loss_date="02-04-2026"),
-        _edge_01(loss_date=datetime(2026, 3, 15)),
+        _edge_01(loss_date=datetime(2026, 3, 15, tzinfo=UTC)),
         _edge_01(policy_number=4479),
         _edge_01(description=1),
     ],

@@ -11,12 +11,13 @@ Day 2 assignment. Implement these against `docs/api-contract.md` sections 2 and 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_core import PydanticCustomError
 
 ClaimType = Literal["collision", "theft", "glass", "liability", "weather"]
 _CALENDAR_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -56,7 +57,10 @@ class NotificationRequest(BaseModel):
     def loss_date_is_a_calendar_date(cls, value: object) -> object:
         # Section 2.2: calendar date, YYYY-MM-DD.
         if isinstance(value, datetime):
-            raise ValueError("loss_date is a calendar date, not a datetime")
+            raise PydanticCustomError(
+                "date_type",
+                "loss_date is a calendar date, not a datetime",
+            )
         if isinstance(value, str) and _CALENDAR_DATE.fullmatch(value) is None:
             raise ValueError("loss_date must be YYYY-MM-DD")
         return value
@@ -100,10 +104,14 @@ class RuleFailure:
     `rule` is the table id (`V-2`). `code` is the caller-visible contract code
     (`LOSS_BEFORE_INCEPTION`). They are distinct so a rule id cannot be passed
     where a code is expected.
+
+    `detail` carries the values the rule compared, as contract section 5 names
+    them. The HTTP layer maps `code` to a status; it does not invent these keys.
     """
 
     rule: str
     code: str
+    detail: dict[str, Any] = field(default_factory=dict)
 
 
 class ClaimRecord(BaseModel):
