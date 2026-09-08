@@ -6,9 +6,10 @@ from decimal import Decimal
 import pytest
 
 from claims.models import ClaimRecord, ClaimType, NotificationRequest, Policy
-from claims.policy_client import StubPolicyClient
+from claims.policy_client import LookupFailureReason, PolicyLookupFailed, StubPolicyClient
 from claims.repository import NotificationRepository
 from claims.service import (
+    ValidationOutcome,
     evaluate_amount_within_limit,
     evaluate_claim_type_covered,
     evaluate_loss_after_inception,
@@ -17,6 +18,7 @@ from claims.service import (
     evaluate_notification,
     evaluate_policy_exists,
     evaluate_policy_not_cancelled,
+    submit_notification,
 )
 
 
@@ -254,20 +256,81 @@ def test_v1_short_circuits_so_inception_is_not_evaluated(
         policy_number="UNKNOWN",
         loss_date=date(2020, 1, 1),
     )
-    failure = evaluate_notification(notification, policy_client, repository)
-    assert (failure.code if failure else None) == "POLICY_NOT_FOUND"
+    result = submit_notification(notification, policy_client, repository)
+    assert isinstance(result, ValidationOutcome)
+    assert result.code == "POLICY_NOT_FOUND"
+    assert (
+        repository.find_matching(
+            notification.policy_number,
+            notification.loss_date,
+            notification.claim_type,
+        )
+        is None
+    )
 
 
 def test_v7_is_reported_ahead_of_expiry_on_a_cancelled_policy(
-    policy_client: StubPolicyClient, repository: NotificationRepository
+    motor_policy: Policy,
 ) -> None:
     """WI-0158 AC-4. Where a policy is cancelled and the loss also falls
     outside the original term, the handler is told the policy was cancelled."""
+    policy = motor_policy.model_copy(
+        update={
+            "effective_date": date(2025, 1, 1),
+            "expiry_date": date(2025, 12, 31),
+            "cancellation_date": date(2025, 10, 1),
+        }
+    )
     notification = a_notification(
         policy_number="MOT-4500",
         loss_date=date(2026, 1, 8),
         claim_type="collision",
         estimated_amount=Decimal("6000.00"),
     )
-    failure = evaluate_notification(notification, policy_client, repository)
+    failure = evaluate_notification(notification, policy)
     assert (failure.code if failure else None) == "POLICY_CANCELLED"
+
+
+def test_submit_records_only_when_every_rule_passed(
+    policy_client: StubPolicyClient, repository: NotificationRepository
+) -> None:
+    notification = a_notification()
+    recorded = submit_notification(notification, policy_client, repository)
+    assert isinstance(recorded, ValidationOutcome)
+    assert recorded.passed
+    assert recorded.claim_reference is not None
+    found = repository.find_matching(
+        notification.policy_number,
+        notification.loss_date,
+        notification.claim_type,
+    )
+    assert found is not None
+    assert found.claim_reference == recorded.claim_reference
+
+
+def test_submit_rejects_a_matching_recorded_notification(
+    policy_client: StubPolicyClient, repository: NotificationRepository
+) -> None:
+    first = submit_notification(a_notification(), policy_client, repository)
+    assert isinstance(first, ValidationOutcome)
+    assert first.passed
+    assert first.claim_reference is not None
+    result = submit_notification(a_notification(), policy_client, repository)
+    assert isinstance(result, ValidationOutcome)
+    assert result.code == "DUPLICATE_NOTIFICATION"
+    assert result.detail["claim_reference"] == first.claim_reference
+
+
+@pytest.mark.parametrize(
+    "reason",
+    ["timeout", "unreachable", "unparsable"],
+    ids=["timeout", "unreachable", "unparsable"],
+)
+def test_policy_lookup_failure_propagates_with_reason(
+    repository: NotificationRepository, reason: LookupFailureReason
+) -> None:
+    """A lookup failure is not a rule outcome. `reason` is intact for HTTP."""
+    policy_client = StubPolicyClient(fail_with=reason)
+    with pytest.raises(PolicyLookupFailed) as raised:
+        submit_notification(a_notification(), policy_client, repository)
+    assert raised.value.reason == reason
