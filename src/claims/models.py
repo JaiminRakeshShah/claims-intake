@@ -17,6 +17,7 @@ from decimal import Decimal
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_core import PydanticCustomError
 
 ClaimType = Literal["collision", "theft", "glass", "liability", "weather"]
 _CALENDAR_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -56,7 +57,10 @@ class NotificationRequest(BaseModel):
     def loss_date_is_a_calendar_date(cls, value: object) -> object:
         # Section 2.2: calendar date, YYYY-MM-DD.
         if isinstance(value, datetime):
-            raise ValueError("loss_date is a calendar date, not a datetime")
+            raise PydanticCustomError(
+                "date_type",
+                "loss_date is a calendar date, not a datetime",
+            )
         if isinstance(value, str) and _CALENDAR_DATE.fullmatch(value) is None:
             raise ValueError("loss_date must be YYYY-MM-DD")
         return value
