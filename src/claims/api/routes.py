@@ -11,4 +11,19 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
-app = FastAPI(title="Claims Intake Service")
+from claims.policy_client import PolicyClient, StubPolicyClient
+from claims.repository import NotificationRepository
+
+
+def create_app(
+    policy_client: PolicyClient | None = None,
+    repository: NotificationRepository | None = None,
+) -> FastAPI:
+    """Build an app with injected dependencies. The route is Day 4 work."""
+    application = FastAPI(title="Claims Intake Service")
+    application.state.policy_client = policy_client or StubPolicyClient()
+    application.state.repository = repository or NotificationRepository()
+    return application
+
+
+app = create_app()
