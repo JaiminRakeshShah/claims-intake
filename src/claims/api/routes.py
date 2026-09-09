@@ -113,11 +113,9 @@ def create_app(
     repository: NotificationRepository | None = None,
 ) -> FastAPI:
     """Build an app with injected dependencies."""
-    resolved_client = policy_client or StubPolicyClient()
-    resolved_repository = repository or NotificationRepository()
     application = FastAPI(title="Claims Intake Service")
-    application.state.policy_client = resolved_client
-    application.state.repository = resolved_repository
+    application.state.policy_client = policy_client or StubPolicyClient()
+    application.state.repository = repository or NotificationRepository()
 
     @application.post("/notifications")
     async def post_notification(request: Request) -> JSONResponse:
@@ -135,7 +133,9 @@ def create_app(
 
         try:
             outcome = submit_notification(
-                notification, resolved_client, resolved_repository
+                notification,
+                request.app.state.policy_client,
+                request.app.state.repository,
             )
         except PolicyLookupFailed as exc:
             return _envelope(
