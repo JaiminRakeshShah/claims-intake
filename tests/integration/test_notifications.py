@@ -69,6 +69,18 @@ def test_extra_field_is_rejected_not_ignored(client: TestClient) -> None:
     assert detail["detail"]["issue"] == "unknown_field"
 
 
+def test_empty_policy_number_is_malformed_not_v1(client: TestClient) -> None:
+    body = _edge("EDGE-01")
+    body["policy_number"] = ""
+    response = client.post("/notifications", json=body)
+    assert response.status_code == 400
+    detail = response.json()
+    assert detail["code"] == "MALFORMED_REQUEST"
+    assert detail["code"] != "POLICY_NOT_FOUND"
+    assert detail["detail"]["field"] == "policy_number"
+    assert isinstance(detail["detail"]["issue"], str)
+
+
 def test_body_not_json_returns_malformed_request(client: TestClient) -> None:
     response = client.post(
         "/notifications",
